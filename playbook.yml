@@ -2,18 +2,49 @@
 - hosts: 127.0.0.1
   become: true
   tasks:
-    - name: install apache on redhat or centos instances
+    - name: "install apache on redhat or centos instances"
       yum: name=httpd state=present
       when: ansible_os_family == "RedHat"
 
-    - name: install apache on debian or ubuntu instances
+    - name: "install apache on debian or ubuntu instances"
       apt: name=apache2 state=present
       when: ansible_os_family == "Debian"
 
-    - name: enable apache on startup and start service for redhat or centos
+    - name: "enable apache on startup and start service for redhat or centos"
       service: name=httpd enabled=yes state=started
       when: ansible_os_family == "RedHat"
 
-    - name: enable apache on startup and start service for debian or ubuntu
+    - name: "enable apache on startup and start service for debian or ubuntu"
       service: name=apache2 enabled=yes state=started
       when: ansible_os_family == "Debian"
+
+    - name: "rabbitmq | repo key"
+      apt_key: url=https://packagecloud.io/rabbitmq/rabbitmq-server/gpgkey state=present
+      when: ansible_os_family == "Debian"
+
+    - name: "rabbitmq | repo config"
+      apt_repository: repo="deb https://packagecloud.io/rabbitmq/rabbitmq-server/ubuntu/ {{ ansible_distribution_release }} main"
+      when: ansible_os_family == "Debian"
+
+    - name: "rabbitmq | install packages"
+      apt: update_cache=yes cache_valid_time=3600
+      when: ansible_os_family == "Debian"
+    - name: "rabbitmq | install rabbitmq-server"
+      apt: name={{ item }} state=present
+      when: ansible_os_family == "Debian"
+      with_items:
+        - apt-transport-https
+        - openssh-server
+        -rabbitmq-server
+
+    - name: "rabbitmq | enable management HTTP UI"
+      rabbitmq_plugin: names=rabbitmq_management state=enabled
+      register: rabbitmq_plugins_mgmt
+
+    - name: "rabbitmq | enable shovel management"
+      rabbitmq_plugins: names=rabbitmq_shovel_management state=enabled
+      register: rabbitmq_plugins_shovel_mgmt
+
+    - name: "rabbitmq | restart for rabbitmq plugins"
+      service: name=rabbitmq-server enabled=yes state=restarted
+      when: rabbitmq_plugins_mgmt.changed or rabbitmq_shovel_management.changed
