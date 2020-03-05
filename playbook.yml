@@ -1,0 +1,11 @@
+---
+    - hosts: 127.0.0.1
+      tasks:
+        - service:
+            name: "{{ item }}"
+            enabled: yes
+            state: started
+          with_items:
+            - httpd
+            - mysqld
+            - fail2ban
